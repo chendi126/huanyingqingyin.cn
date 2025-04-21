@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            background-color: #444;
+            padding: 0.5rem;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+        }
+        nav a:hover {
+            background-color: #555;
+        }
+        .payment-container {
+            display: flex;
+            padding: 2rem;
+        }
+        .user-info {
+            flex: 1;
+            padding-right: 2rem;
+        }
+        .user-info h2 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .qr-code {
+            flex: 1;
+            text-align: center;
+            display: none;
+        }
+        /* 保留原有支付按钮样式 */
+        .pay-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+        .pay-btn:hover {
+            background-color: #45a049;
+        }
+        /* 保留原有页脚样式 */
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>支付</h1>
+    </header>
+    <nav>
+        <a href="index.html">首页</a>
+        <a href="products.html">商品列表</a>
+        <a href="video.html">视频</a>
+    </nav>
+    <div class="payment-container">
+        <div class="user-info">
+            <h2>收货信息</h2>
+            <div class="form-group">
+                <label for="name">姓名</label>
+                <input type="text" id="name" required>
+            </div>
+            <div class="form-group">
+                <label for="phone">手机号</label>
+                <input type="tel" id="phone" required>
+            </div>
+            <div class="form-group">
+                <label for="address">收货地址</label>
+                <input type="text" id="address" required>
+            </div>
+            <button class="pay-btn">确认支付</button>
+        </div>
+        <div class="qr-code">
+            <h2>请扫码支付</h2>
+            <img src="即.jpg" alt="收款码">
+            <button class="pay-btn" id="paid-btn" style="margin-top: 20px;">我已支付</button>
+        </div>
+    </div>
+    <footer>
+        <p>© 2023 我们的商店. 版权所有.</p>
+    </footer>
+    <script>
+        document.querySelector('.pay-btn').addEventListener('click', function() {
+            // 验证表单
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const address = document.getElementById('address').value;
+            
+            if(!name || !phone || !address) {
+                alert('请填写完整的收货信息');
+                return;
+            }
+            
+            // 显示二维码支付区域
+            document.querySelector('.qr-code').style.display = 'block';
+            
+            // 模拟支付成功
+            setTimeout(() => {
+                alert('支付成功！正在生成订单...');
+                generateOrderExcel(name, phone, address);
+            }, 2000);
+        });
+    
+        // 添加已支付按钮事件
+        document.getElementById('paid-btn').addEventListener('click', function() {
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const address = document.getElementById('address').value;
+            
+            if(!name || !phone || !address) {
+                alert('请填写完整的收货信息');
+                return;
+            }
+            
+            generateOrderExcel(name, phone, address);
+        });
+
+        // 修改generateOrderExcel函数，添加购物车商品详情
+        // 修改generateOrderExcel函数，正确处理商品价格
+        function generateOrderExcel(name, phone, address) {
+            const wb = XLSX.utils.book_new();
+            const cartItems = getCartItems();
+            
+            // 创建订单数据
+            const orderData = [
+                ["订单信息", ""],
+                ["姓名", name],
+                ["电话", phone],
+                ["收货地址", address],
+                ["订单日期", new Date().toLocaleString()],
+                ["订单金额", "¥" + calculateTotal()],
+                ["", ""],
+                ["商品列表", ""]
+            ];
+            
+            // 添加商品详情
+            cartItems.forEach(item => {
+                orderData.push([
+                    item.name, 
+                    "¥" + (typeof item.price === 'number' ? item.price.toFixed(2) : item.price)
+                ]);
+            });
+            
+            const ws = XLSX.utils.aoa_to_sheet(orderData);
+            XLSX.utils.book_append_sheet(wb, ws, "订单详情");
+            
+            // 生成并下载Excel
+            XLSX.writeFile(wb, `订单_${new Date().getTime()}.xlsx`);
+            
+            // 清空购物车
+            localStorage.removeItem('cart');
+            alert('订单已生成，感谢您的购买！');
+            window.location.href = 'index.html';
+        }
+
+        // 修正calculateTotal函数
+        function calculateTotal() {
+            const cartItems = getCartItems();
+            let total = 0;
+            cartItems.forEach(item => {
+                total += typeof item.price === 'number' ? item.price : parseFloat(item.price.replace('¥', ''));
+            });
+            return total.toFixed(2);
+        }
+    
+        // 修改getCartItems函数确保正确获取购物车数据
+        function getCartItems() {
+            try {
+                const cart = localStorage.getItem('cart');
+                if (!cart) return [];
+                
+                const items = JSON.parse(cart);
+                // 确保返回的数组格式正确
+                return Array.isArray(items) ? items : [];
+            } catch (e) {
+                console.error('获取购物车数据出错:', e);
+                return [];
+            }
+        }
+
+        // 修改generateOrderExcel函数，添加错误处理
+        function generateOrderExcel(name, phone, address) {
+            try {
+                const wb = XLSX.utils.book_new();
+                const cartItems = getCartItems();
+                
+                if (cartItems.length === 0) {
+                    alert('购物车为空，无法生成订单');
+                    return;
+                }
+
+                // 创建订单数据
+                const orderData = [
+                    ["订单信息", ""],
+                    ["姓名", name],
+                    ["电话", phone],
+                    ["收货地址", address],
+                    ["订单日期", new Date().toLocaleString()],
+                    ["订单金额", "¥" + calculateTotal()],
+                    ["", ""],
+                    ["商品列表", ""]
+                ];
+                
+                // 添加商品详情
+                cartItems.forEach(item => {
+                    orderData.push([
+                        item.name, 
+                        "¥" + (typeof item.price === 'number' ? item.price.toFixed(2) : item.price)
+                    ]);
+                });
+                
+                // 添加调试信息
+                console.log('准备生成的订单数据:', orderData);
+                
+                const ws = XLSX.utils.aoa_to_sheet(orderData);
+                XLSX.utils.book_append_sheet(wb, ws, "订单详情");
+                
+                // 生成并下载Excel
+                XLSX.writeFile(wb, `订单_${new Date().getTime()}.xlsx`);
+                
+                // 清空购物车
+                localStorage.removeItem('cart');
+                alert('订单已生成，感谢您的购买！');
+                window.location.href = 'index.html';
+            } catch (e) {
+                console.error('生成Excel出错:', e);
+                alert('生成订单失败，请重试或联系客服');
+            }
+        }
+    </script>
+</body>
+</html>
